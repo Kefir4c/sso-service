@@ -1,0 +1,21 @@
+env: "local"
+migrations-path: "./migrations"
+tokenTTL: 1h
+
+storage:
+  type: "postgres"
+  host: "localhost"
+  port: 5433
+  username: "postgres"
+  password: "postgres"
+  dbname: "sso_db"
+
+cache:
+    driver: "redis"
+    host: "localhost"
+    port: 6379
+    db: 0
+
+grpc:
+      port: 44044
+      timeout: 5s
