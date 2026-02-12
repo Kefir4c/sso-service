@@ -1,9 +1,11 @@
 package config
 
 import (
-	"fmt"
+	"flag"
 	"os"
 	"time"
+
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
@@ -36,22 +38,39 @@ type GRPCConfig struct {
 	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
 }
 
+func MustLoad() *Config {
+	configPath := fethConfigPath()
+	if configPath == "" {
+		panic("config path is empty")
+	}
+	return mustLoadPath(configPath)
+}
 func mustLoadPath(configPath string) *Config {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		panic(fmt.Sprintf("Config file does not exist: %s\n\n"+
-			"💡 Quick start:\n"+
-			"   cp config/local.yaml.example config/local.yaml\n"+
-			"   go run main.go\n\n"+
-			"📌 Or set custom path:\n"+
-			"   go run main.go -config=./config/prod.yaml\n"+
-			"   export CONFIG_PATH=./config/prod.yaml",
-			configPath))
+		panic("config file does not exists" + configPath)
 	}
 
-	var config Config
-	if err := cleanenv.ReadConfig(configPath, &config); err != nil {
-		panic(fmt.Sprintf("Failed to read config: %v", err))
+	var cfg Config
+
+	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+		panic("cannot read config" + err.Error())
 	}
 
-	return &config
+	return &cfg
+}
+
+func fethConfigPath() string {
+	var path string
+
+	flag.StringVar(&path, "config", "", "path to config file")
+	flag.Parse()
+
+	if path == "" {
+		path = os.Getenv("CONFIG_PATH")
+	}
+	if path == "" {
+		path = "./config/local.yaml"
+	}
+
+	return path
 }

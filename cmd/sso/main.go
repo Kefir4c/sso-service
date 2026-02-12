@@ -1,7 +1,15 @@
 package main
 
+import (
+	"fmt"
+
+	"github.com/Kefir4c/sso-service/internal/config"
+)
+
 func main() {
-	// TODO: инициализация объект конфига
+	cfg := config.MustLoad()
+
+	fmt.Println(cfg)
 
 	// TODO: инициализировать логгер
 
