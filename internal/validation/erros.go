@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	ErrEmailRequired = errors.New("email is required")
-	ErrEmailInvild   = errors.New("email is invalid")
+	ErrEmailInvilid  = errors.New("email is invalid")
 	ErrEmailTooLong  = errors.New("email is to long")
 
 	ErrPasswordRequired  = errors.New("password is required")
