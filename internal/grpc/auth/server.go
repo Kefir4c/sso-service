@@ -12,6 +12,8 @@ type ServerAPI struct {
 	timeout time.Duration
 }
 
+func ValidateAuth(in *ssov1.AuthClient)
+
 func (s ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
 	return nil, nil
 }
