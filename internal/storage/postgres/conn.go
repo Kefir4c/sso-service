@@ -3,8 +3,10 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/Kefir4c/sso-service/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -12,7 +14,20 @@ type Storage struct {
 	pool *pgxpool.Pool
 }
 
-func New(ctx context.Context, host, database, username, password string, port int) (*Storage, error) {
+func NewPostgresFromConfig(config *config.Config) (*Storage, error) {
+	ctx, cancelCtx := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelCtx()
+	return NewPostgres(
+		ctx,
+		config.Storage.Host,
+		config.Storage.DBName,
+		config.Storage.Username,
+		os.Getenv("POSTGRES_PASS"),
+		config.Storage.Port,
+	)
+}
+
+func NewPostgres(ctx context.Context, host, database, username, password string, port int) (*Storage, error) {
 	const op = "postgres.New"
 
 	connString := fmt.Sprintf(

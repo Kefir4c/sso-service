@@ -5,11 +5,3 @@ type User struct {
 	Email    string `json:"email"`
 	PassHash []byte `json:"-"`
 }
-
-func NewUser(id int64, email string, passhash []byte) *User {
-	return &User{
-		ID:       id,
-		Email:    email,
-		PassHash: passhash,
-	}
-}
