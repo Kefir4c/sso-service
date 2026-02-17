@@ -20,7 +20,10 @@ func ValidateEmail(email string) error {
 		return ErrEmailInvilid
 	}
 
-	local, domain, _ := strings.Cut(addr.Address, "@")
+	local, domain, found := strings.Cut(addr.Address, "@")
+	if !found {
+		return ErrEmailInvilid
+	}
 
 	if len(local) > 64 || len(local) == 0 {
 		return ErrEmailInvilid
