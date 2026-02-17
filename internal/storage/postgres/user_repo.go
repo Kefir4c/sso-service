@@ -2,9 +2,12 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Kefir4c/sso-service/internal/domain/models"
+	"github.com/Kefir4c/sso-service/internal/storage"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -31,13 +34,12 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passhash []byte) (
 	const op = "storage.user_repo.SaveUser"
 
 	var id int64
-
 	if err := s.pool.QueryRow(ctx, sqlInsertUser, email, passhash).
-	Scan(&id); err != nil {
-		pgErr, ok := err.(*pgconn.PgError)
+		Scan(&id); err != nil {
+		var pgErr *pgconn.PgError
 
-		if ok && pgErr.Code == pgUniqueViolation {
-			return 0, fmt.Errorf("%s: %w", op, err)
+		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrLoginExists)
 		}
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -45,11 +47,30 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passhash []byte) (
 	return id, nil
 }
 
-func(s *Storage) User(ctx context.Context,email string) (models.User,error) {
+func (s *Storage) User(ctx context.Context, email string) (*models.User, error) {
 	const op = "Storage.user_repo.User"
 
-	var user *models.User
+	var user models.User
+	if err := s.pool.QueryRow(ctx, sqlGetUserByEmail, email).
+		Scan(&user.ID, &user.Email, &user.PassHash); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	return &user, nil
+}
 
-	if err:= s.pool.QueryRow(ctx,sqlGetUserByEmail,email).
-	Scan(&user.ID,&user.Email,&user.PassHash)
+func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
+	const op = "Storage.user_repo.IsAdmin"
+
+	var isAdmin bool
+
+	if err := s.pool.QueryRow(ctx, sqlCheckAdmin, userID).Scan(&isAdmin); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
+		}
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+	return isAdmin, nil
 }
