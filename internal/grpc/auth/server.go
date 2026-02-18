@@ -10,6 +10,7 @@ import (
 	"github.com/Kefir4c/sso-service/internal/services/auth"
 	"github.com/Kefir4c/sso-service/internal/storage"
 	"github.com/Kefir4c/sso-service/internal/validation"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -22,6 +23,12 @@ type Auth interface {
 	Logout(ctx context.Context, token string) (bool, error)
 }
 
+type ServerAPI struct {
+	ssov1.UnimplementedAuthServer
+	auth    Auth
+	timeout time.Duration
+}
+
 const (
 	errEmailInvalid    = "email is invalid"
 	errPasswordInvalid = "password is invalid"
@@ -30,10 +37,8 @@ const (
 	errTokenRequired   = "token is required"
 )
 
-type ServerAPI struct {
-	ssov1.UnimplementedAuthServer
-	auth    Auth
-	timeout time.Duration
+func Register(gRPCServer *grpc.Server, auth Auth, timeout time.Duration) {
+	ssov1.RegisterAuthServer(gRPCServer, &ServerAPI{auth: auth, timeout: timeout})
 }
 
 func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
