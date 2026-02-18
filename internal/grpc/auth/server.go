@@ -1,10 +1,14 @@
-package auth
+package authgrpc
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"time"
 
 	ssov1 "github.com/Kefir4c/protos_sso/gen/go/sso"
+	"github.com/Kefir4c/sso-service/internal/services/auth"
+	"github.com/Kefir4c/sso-service/internal/storage"
 	"github.com/Kefir4c/sso-service/internal/validation"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,30 +22,121 @@ type Auth interface {
 	Logout(ctx context.Context, token string) (bool, error)
 }
 
+const (
+	errEmailInvalid    = "email is invalid"
+	errPasswordInvalid = "password is invalid"
+	errAppIDRequired   = "app_id is required"
+	errUserIDRequired  = "user_id is required"
+	errTokenRequired   = "token is required"
+)
+
 type ServerAPI struct {
 	ssov1.UnimplementedAuthServer
-	timeout time.Duration
 	auth    Auth
+	timeout time.Duration
 }
 
-func ValidateAuth(in *ssov1.AuthClient)
-
-func (s ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
+func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
 	if err := validation.ValidateEmail(in.Email); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, errEmailInvalid)
 	}
 
 	if err := validation.ValidatePassword(in.Password); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, errPasswordInvalid)
 	}
 
-	// uid, err := s.auth.Register(ctx, in.GetEmail(), in.GetPassword())
+	uid, err := s.auth.Register(ctx, in.Email, in.Password)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserExists) {
+			return nil, status.Error(codes.AlreadyExists, "user already exists")
+		}
+		return nil, status.Error(codes.Internal, "failed to register user")
+	}
+	return &ssov1.RegisterResponse{UserId: uid}, nil
+}
 
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return nil, nil
+func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
+	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
+	defer cancelCtx()
+
+	if err := validation.ValidateEmail(in.Email); err != nil {
+		return nil, status.Error(codes.InvalidArgument, errEmailInvalid)
+	}
+
+	if err := validation.ValidatePassword(in.Password); err != nil {
+		return nil, status.Error(codes.InvalidArgument, errPasswordInvalid)
+	}
+
+	if in.AppId == 0 {
+		return nil, status.Error(codes.InvalidArgument, errAppIDRequired)
+	}
+
+	token, err := s.auth.Login(ctx, in.Email, in.Password, int(in.AppId))
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, status.Error(codes.Unauthenticated, "invalid email or password")
+		}
+		return nil, status.Error(codes.Internal, "failed to login user")
+	}
+	return &ssov1.LoginResponse{Token: token}, nil
+}
+
+func (s *ServerAPI) IsAdmin(ctx context.Context, in *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
+	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
+	defer cancelCtx()
+
+	if in.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, errUserIDRequired)
+	}
+
+	isAdmin, err := s.auth.IsAdmin(ctx, in.UserId)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "user not found")
+		}
+		return nil, status.Error(codes.Internal, "failed to check admin status")
+	}
+	return &ssov1.IsAdminResponse{IsAdmin: isAdmin}, nil
+}
+
+func (s *ServerAPI) ValidateToken(ctx context.Context, in *ssov1.ValidateTokenRequest) (*ssov1.ValidateTokenResponse, error) {
+	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
+	defer cancelCtx()
+
+	if in.Token == "" {
+		return nil, status.Error(codes.InvalidArgument, errTokenRequired)
+	}
+
+	isValid, userID, email, appID := s.auth.ValidateToken(ctx, in.Token)
+	return &ssov1.ValidateTokenResponse{
+		IsValid: isValid,
+		UserId:  userID,
+		Email:   email,
+		AppId:   int32(appID),
+	}, nil
+}
+
+func (s *ServerAPI) Logout(ctx context.Context, in *ssov1.LogoutRequest) (*ssov1.LogoutResponse, error) {
+	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
+	defer cancelCtx()
+
+	if in.Token == "" {
+		return nil, status.Error(codes.InvalidArgument, errTokenRequired)
+	}
+
+	tokenPreview := in.Token
+	if len(tokenPreview) > 8 {
+		tokenPreview = tokenPreview[:8] + "..."
+	}
+
+	slog.Info("Logout request", "Token", tokenPreview)
+
+	success, err := s.auth.Logout(ctx, in.Token)
+	if err != nil {
+		return &ssov1.LogoutResponse{Success: false}, nil
+	}
+	return &ssov1.LogoutResponse{Success: success}, nil
 }
