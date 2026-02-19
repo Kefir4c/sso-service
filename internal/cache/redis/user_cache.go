@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +11,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const userPrefix = "user:"
+const (
+	userPrefix = "user:"
+)
+
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
 
 func (r *Redis) SetUser(ctx context.Context, user *models.User, ttl time.Duration) error {
 	const op = "redis.SetUser"
