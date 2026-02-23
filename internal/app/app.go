@@ -18,25 +18,25 @@ func New(log *slog.Logger,cfg *config.Config) *App{
 	
 	var(
 		storage postgres.Storage
-		cache redis.Redis
+		cahce redis.Redis
 		err error
 	)
 
 	switch cfg.Storage.Type{
 	case "postgres":
-		storage,err = postgres.NewFromConfig(cfg)
+		store,err:= postgres.NewFromConfig(cfg)
 
 		if err != nil{
-			log.Error("failed to connect to Postgres",sl.Err(err))
+			log.Error("failed to cennect to Postgres",sl.Err(err))
 			panic(err)
 		}
 	default:
-		panic("unknow DB")
+		panic("unrnow DB")
 	}
 
 	switch cfg.Cache.Driver{
 	case "redis":
-		cache,err = redis.NewFromConfig(cfg)
+		cache,err:= redis.NewFromConfig(cfg)
 		
 		if err != nil{
 			log.Error("failed to connect to Redis",sl.Err(err))
@@ -47,5 +47,5 @@ func New(log *slog.Logger,cfg *config.Config) *App{
 	}
 
 	auth:= auth.
-	
+
 }
