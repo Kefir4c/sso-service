@@ -9,6 +9,7 @@ import (
 
 	"github.com/Kefir4c/sso-service/internal/cache/redis"
 	"github.com/Kefir4c/sso-service/internal/domain/models"
+	"github.com/Kefir4c/sso-service/internal/lib/jwt"
 	"github.com/Kefir4c/sso-service/internal/lib/logger/sl"
 	"github.com/Kefir4c/sso-service/internal/storage"
 	"github.com/Kefir4c/sso-service/internal/storage/postgres"
@@ -140,4 +141,118 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 
 	log.Info("user registered", slog.Int64("id", id))
 	return id, nil
+}
+
+func (a *Auth) Login(ctx context.Context, email, password string, appID int) (string, error) {
+	const op = "auth.Login"
+
+	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
+	defer cancelCtx()
+
+	log := a.log.With(slog.String("op", op), slog.String("email", email))
+
+	if err := validation.ValidateEmail(email); err != nil {
+		log.Warn("invalid email", sl.Err(err))
+		return "", fmt.Errorf("%s :%w", op, ErrInvalidEmail)
+	}
+
+	if err := validation.ValidatePassword(password); err != nil {
+		log.Warn("invalid password", sl.Err(err))
+		return "", fmt.Errorf("%s :%w", op, ErrInvalidPassword)
+	}
+
+	if appID < 0 {
+		log.Warn("invalid app_id", slog.Int("app_id", appID))
+		return "", fmt.Errorf("%s: invalid app_id", op)
+	}
+
+	log.Info("logging in user")
+
+	user, err := a.getUser(ctx, email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			log.Warn("user not found")
+			return "", fmt.Errorf("%s :%w", op, ErrUserNotFound)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+		log.Warn("invalid password accept")
+	}
+
+	app, err := a.storage.App(ctx, appID)
+	if err != nil {
+		if errors.Is(err, ErrAppNotFound) {
+			log.Warn("app not found", slog.Int("app_id", appID))
+			return "", fmt.Errorf("%s :%w", op, ErrAppNotFound)
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	token, err := jwt.NewToken(user, app, a.tokenTTL)
+	if err != nil {
+		log.Error("failed to generate jwt", sl.Err(err))
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	log.Info("user logged in seccesfully")
+	return token, nil
+}
+
+func (a *Auth) isAdmin(ctx context.Context, userID int64) (bool, error) {
+	const op = "auth.IsAdmin"
+
+	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
+	defer cancelCtx()
+
+	log := a.log.With(slog.String("op", op), slog.Int64("user_id", userID))
+
+	if userID <= 0 {
+		log.Warn("invalid user_id")
+		return false, fmt.Errorf("%s : invalid user_id", op)
+	}
+
+	log.Info("checking dmin status")
+
+	isAdmin, err := a.storage.IsAdmin(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			log.Warn("user not found")
+			return false, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+		}
+		log.Error("failed to check admin status", sl.Err(err))
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	log.Info("admin status check", slog.Bool("is_admin", isAdmin))
+	return isAdmin, nil
+}
+
+func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, string, int) {
+	const op = "auth.ValidToken"
+
+	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
+	defer cancelCtx()
+
+	log := a.log.With(slog.String("op", op))
+
+	if token == "" {
+		log.Warn("empty token")
+		return false, 0, "", 0
+	}
+
+	blackListed, err := a.cache.IsBlacklisted(ctx, token)
+	if err != nil {
+		log.Error("failed is chack to blacklist", sl.Err(err))
+		return false, 0, "", 0
+	}
+	if blackListed {
+		log.Info("token is blacklisted")
+		return false, 0, "", 0
+	}
+
+	// claims, err := jw
+	return false, 0, "", 0
+
 }
