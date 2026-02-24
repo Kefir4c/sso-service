@@ -47,7 +47,7 @@ func New(log *slog.Logger, cfg *config.Config) *App {
 		panic("unknow Cache")
 	}
 
-	auth := auth2.New(log, storage, cache, cfg.GRPC.Timeout)
+	auth := auth2.New(log, storage, storage, cache, cfg.GRPC.Timeout)
 
 	gRPCServer := grpcapp.New(log, auth, cfg.GRPC.Port, cfg.GRPC.Timeout)
 
