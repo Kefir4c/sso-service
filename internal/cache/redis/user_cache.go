@@ -47,7 +47,7 @@ func (r *Redis) GetUser(ctx context.Context, email string) (*models.User, error)
 
 	var user models.User
 
-	if err := json.Unmarshal(data, user); err != nil {
+	if err := json.Unmarshal(data, &user); err != nil {
 		return nil, fmt.Errorf("%s:%w", op, err)
 	}
 	return &user, nil

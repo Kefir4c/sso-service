@@ -7,12 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Kefir4c/sso-service/internal/cache/redis"
 	"github.com/Kefir4c/sso-service/internal/domain/models"
 	"github.com/Kefir4c/sso-service/internal/lib/jwt"
 	"github.com/Kefir4c/sso-service/internal/lib/logger/sl"
 	"github.com/Kefir4c/sso-service/internal/storage"
-	"github.com/Kefir4c/sso-service/internal/storage/postgres"
 	"github.com/Kefir4c/sso-service/internal/validation"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -36,18 +34,24 @@ const (
 )
 
 type Auth struct {
-	log      *slog.Logger
-	storage  *postgres.Storage
-	cache    *redis.Redis
-	tokenTTL time.Duration
+	log        *slog.Logger
+	storage    UserStorage
+	appStorage AppStorage
+	cache      Cache
+	tokenTTL   time.Duration
 }
 
-func New(log *slog.Logger, storage *postgres.Storage, cache *redis.Redis, tokenTTL time.Duration) *Auth {
+func New(log *slog.Logger,
+	userStorage UserStorage,
+	appStorage AppStorage,
+	cache Cache,
+	tokenTTL time.Duration) *Auth {
 	return &Auth{
-		log:      log,
-		storage:  storage,
-		cache:    cache,
-		tokenTTL: tokenTTL,
+		log:        log,
+		storage:    userStorage,
+		appStorage: appStorage,
+		cache:      cache,
+		tokenTTL:   tokenTTL,
 	}
 }
 
@@ -62,7 +66,7 @@ func (a *Auth) getUser(ctx context.Context, email string) (*models.User, error) 
 		log.Debug("cache hit")
 		return user, nil
 	}
-	if !errors.Is(err, redis.ErrUserNotFound) {
+	if !errors.Is(err, ErrUserNotFound) {
 		log.Error("cache error", sl.Err(err))
 		return nil, fmt.Errorf("cache error: %w", err)
 	}
@@ -178,10 +182,11 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
-		log.Warn("invalid password accept")
+		log.Warn("invalid password")
+		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	app, err := a.storage.App(ctx, appID)
+	app, err := a.appStorage.App(ctx, appID)
 	if err != nil {
 		if errors.Is(err, ErrAppNotFound) {
 			log.Warn("app not found", slog.Int("app_id", appID))
@@ -213,7 +218,7 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 		return false, fmt.Errorf("%s : invalid user_id", op)
 	}
 
-	log.Info("checking dmin status")
+	log.Info("checking admin status")
 
 	isAdmin, err := a.storage.IsAdmin(ctx, userID)
 	if err != nil {
@@ -230,7 +235,7 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 }
 
 func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, string, int) {
-	const op = "auth.ValidToken"
+	const op = "auth.ValidateToken"
 
 	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
 	defer cancelCtx()
@@ -244,7 +249,7 @@ func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, st
 
 	blackListed, err := a.cache.IsBlacklisted(ctx, token)
 	if err != nil {
-		log.Error("failed is chack to blacklist", sl.Err(err))
+		log.Error("failed to check blacklist", sl.Err(err))
 		return false, 0, "", 0
 	}
 	if blackListed {
@@ -258,24 +263,22 @@ func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, st
 		return false, 0, "", 0
 	}
 
-	// 3. Получаем секрет приложения из БД
-	app, err := a.storage.App(ctx, claims.AppID)
+	app, err := a.appStorage.App(ctx, claims.AppID)
 	if err != nil {
 		log.Info("app not found", slog.Int("app_id", claims.AppID))
 		return false, 0, "", 0
 	}
 
-	// 4. Проверяем подпись с реальным секретом
 	validatedClaims, err := jwt.ValidateTokenWithSecret(token, app.Secret)
 	if err != nil {
 		log.Info("invalid token signature", sl.Err(err))
 		return false, 0, "", 0
 	}
 
-	_, err = a.storage.User(ctx, claims.Email)
+	_, err = a.storage.User(ctx, validatedClaims.Email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			log.Info("user not found", slog.String("email", claims.Email))
+			log.Info("user not found", slog.String("email", validatedClaims.Email))
 			return false, 0, "", 0
 		}
 		log.Error("failed to check user existence", sl.Err(err))
@@ -283,9 +286,9 @@ func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, st
 	}
 
 	log.Info("token validated successfully",
-		slog.Int64("user_id", claims.UserID),
-		slog.String("email", claims.Email),
-		slog.Int("app_id", claims.AppID),
+		slog.Int64("user_id", validatedClaims.UserID),
+		slog.String("email", validatedClaims.Email),
+		slog.Int("app_id", validatedClaims.AppID),
 	)
 
 	return true, validatedClaims.UserID, validatedClaims.Email, validatedClaims.AppID
@@ -314,7 +317,7 @@ func (a *Auth) Logout(ctx context.Context, token string) (bool, error) {
 	ttl := time.Until(claims.ExpiresAt.Time)
 	if ttl <= 0 {
 		log.Info("token already expired")
-		return false, err
+		return true, nil
 	}
 
 	if err := a.cache.AddToBlacklist(ctx, token, ttl); err != nil {
@@ -322,7 +325,7 @@ func (a *Auth) Logout(ctx context.Context, token string) (bool, error) {
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	log.Info("user logged out successfully", slog.Duration("token_ttl", ttl))
+	log.Info("successfully", slog.Duration("token_ttl", ttl))
 
 	return true, nil
 }
