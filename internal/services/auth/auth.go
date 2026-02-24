@@ -37,18 +37,18 @@ const (
 
 type Auth struct {
 	log      *slog.Logger
-	storage  postgres.Storage
-	cache    redis.Redis
+	storage  *postgres.Storage
+	cache    *redis.Redis
 	tokenTTL time.Duration
 }
 
-func New(log *slog.Logger, storage postgres.Storage, cache redis.Redis, tokenTTL time.Duration) (*Auth, error) {
+func New(log *slog.Logger, storage *postgres.Storage, cache *redis.Redis, tokenTTL time.Duration) *Auth {
 	return &Auth{
 		log:      log,
 		storage:  storage,
 		cache:    cache,
 		tokenTTL: tokenTTL,
-	}, nil
+	}
 }
 
 func (a *Auth) getUser(ctx context.Context, email string) (*models.User, error) {
@@ -200,7 +200,7 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 	return token, nil
 }
 
-func (a *Auth) isAdmin(ctx context.Context, userID int64) (bool, error) {
+func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "auth.IsAdmin"
 
 	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
@@ -252,7 +252,77 @@ func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, st
 		return false, 0, "", 0
 	}
 
-	// claims, err := jw
-	return false, 0, "", 0
+	claims, err := jwt.ParseToken(token)
+	if err != nil {
+		log.Info("failed to parse token", sl.Err(err))
+		return false, 0, "", 0
+	}
 
+	// 3. Получаем секрет приложения из БД
+	app, err := a.storage.App(ctx, claims.AppID)
+	if err != nil {
+		log.Info("app not found", slog.Int("app_id", claims.AppID))
+		return false, 0, "", 0
+	}
+
+	// 4. Проверяем подпись с реальным секретом
+	validatedClaims, err := jwt.ValidateTokenWithSecret(token, app.Secret)
+	if err != nil {
+		log.Info("invalid token signature", sl.Err(err))
+		return false, 0, "", 0
+	}
+
+	_, err = a.storage.User(ctx, claims.Email)
+	if err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			log.Info("user not found", slog.String("email", claims.Email))
+			return false, 0, "", 0
+		}
+		log.Error("failed to check user existence", sl.Err(err))
+		return false, 0, "", 0
+	}
+
+	log.Info("token validated successfully",
+		slog.Int64("user_id", claims.UserID),
+		slog.String("email", claims.Email),
+		slog.Int("app_id", claims.AppID),
+	)
+
+	return true, validatedClaims.UserID, validatedClaims.Email, validatedClaims.AppID
+}
+
+func (a *Auth) Logout(ctx context.Context, token string) (bool, error) {
+	const op = "auth.Logout"
+
+	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
+	defer cancelCtx()
+
+	log := a.log.With(slog.String("op", op))
+
+	if token == "" {
+		log.Warn("empty token")
+		return false, fmt.Errorf("%s: token is empty", op)
+	}
+	log.Info("Processing logout ")
+
+	claims, err := jwt.ParseToken(token)
+	if err != nil {
+		log.Warn("invalid token in logout request", sl.Err(err))
+		return false, nil
+	}
+
+	ttl := time.Until(claims.ExpiresAt.Time)
+	if ttl <= 0 {
+		log.Info("token already expired")
+		return false, err
+	}
+
+	if err := a.cache.AddToBlacklist(ctx, token, ttl); err != nil {
+		log.Error("failed to add token to blacklist", sl.Err(err))
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	log.Info("user logged out successfully", slog.Duration("token_ttl", ttl))
+
+	return true, nil
 }

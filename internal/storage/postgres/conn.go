@@ -21,17 +21,17 @@ func New(ctx context.Context, host, database, username, password string, port in
 		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 		host, port, database, username, password)
 
-	config, err := pgxpool.ParseConfig(connString)
+	cfg, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf(" %s: parse config %w", op, err)
 	}
 
-	config.MaxConns = 25
-	config.MinConns = 5
-	config.MaxConnLifetime = time.Hour
-	config.MaxConnIdleTime = 30 * time.Minute
+	cfg.MaxConns = 25
+	cfg.MinConns = 5
+	cfg.MaxConnLifetime = time.Hour
+	cfg.MaxConnIdleTime = 30 * time.Minute
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("%s: connect %w", op, err)
 	}

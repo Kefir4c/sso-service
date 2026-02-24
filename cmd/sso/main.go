@@ -2,7 +2,11 @@ package main
 
 import (
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
+	app2 "github.com/Kefir4c/sso-service/internal/app"
 	"github.com/Kefir4c/sso-service/internal/config"
 	"github.com/Kefir4c/sso-service/internal/logger"
 )
@@ -14,9 +18,19 @@ func main() {
 
 	log.Info("starting application", slog.Any("config", cfg))
 
-	// TODO: инициализировать логгер
+	log.Info("success read config add setup logger")
 
-	// TODO: инициализировать приложение (app)
+	app := app2.New(log, cfg)
 
-	// TODO: запустить gRPC-сервер приложения
+	go func() {
+		app.GRPCServer.MustRun()
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+
+	<-stop
+
+	app.GRPCServer.Stop()
+	log.Info("Gracefull stopped")
 }
