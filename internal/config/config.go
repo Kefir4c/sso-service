@@ -34,6 +34,7 @@ type CacheConfig struct {
 }
 
 type GRPCConfig struct {
+	Host    string        `yaml:"host" env-default:"localhost"`
 	Port    int           `yaml:"port" env-default:"44044"`
 	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
 }
@@ -43,9 +44,9 @@ func MustLoad() *Config {
 	if configPath == "" {
 		panic("config path is empty")
 	}
-	return mustLoadPath(configPath)
+	return MustLoadPath(configPath)
 }
-func mustLoadPath(configPath string) *Config {
+func MustLoadPath(configPath string) *Config {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		panic("config file does not exists" + configPath)
 	}
