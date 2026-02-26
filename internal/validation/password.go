@@ -3,8 +3,8 @@ package validation
 import "unicode"
 
 var (
-	minPasswordLength = 8
-	maxPasswordLength = 72
+	MinPasswordLength = 8
+	MaxPasswordLength = 72
 )
 
 var commonPassword = map[string]bool{
@@ -20,11 +20,11 @@ func ValidatePassword(password string) error {
 		return ErrPasswordRequired
 	}
 
-	if len(password) < minPasswordLength {
+	if len(password) < MinPasswordLength {
 		return ErrPasswordTooShort
 	}
 
-	if len(password) > maxPasswordLength {
+	if len(password) > MaxPasswordLength {
 		return ErrPasswordTooLong
 	}
 
