@@ -110,7 +110,7 @@ func TestHappyPath_RegisterLogin(t *testing.T) {
 	assert.Equal(t, email, claims.Email)
 	assert.Equal(t, testdata.AppID, claims.AppID)
 }
-func TestRegister_InvalidPaswwordLength(t *testing.T) {
+func TestRegister_InvalidPasswordLength(t *testing.T) {
 	ctx, st := suite.New(t)
 
 	testCases := []struct {
@@ -149,7 +149,7 @@ func TestRegister_InvalidPaswwordLength(t *testing.T) {
 			})
 			if tc.wantErr {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errMsg)
+				assert.ErrorContains(t, err, tc.errMsg)
 			} else {
 				require.NoError(t, err)
 			}
@@ -243,53 +243,53 @@ func TestLogin_FailCases(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name        string
-		email       string
-		password    string
-		appID       int32
-		expectedErr string
+		name     string
+		email    string
+		password string
+		appID    int32
+		errMsg   string
 	}{
 		{
-			name:        "Empty Password",
-			email:       existingEmail,
-			password:    "",
-			appID:       testdata.AppID,
-			expectedErr: "password is required",
+			name:     "Empty Password",
+			email:    existingEmail,
+			password: "",
+			appID:    testdata.AppID,
+			errMsg:   "password is required",
 		},
 		{
-			name:        "Empty Email",
-			email:       "",
-			password:    generatePassword(validPasswordConfig),
-			appID:       testdata.AppID,
-			expectedErr: "email is required",
+			name:     "Empty Email",
+			email:    "",
+			password: generatePassword(validPasswordConfig),
+			appID:    testdata.AppID,
+			errMsg:   "email is required",
 		},
 		{
-			name:        "Both Empty",
-			email:       "",
-			password:    "",
-			appID:       testdata.AppID,
-			expectedErr: "email is required",
+			name:     "Both Empty",
+			email:    "",
+			password: "",
+			appID:    testdata.AppID,
+			errMsg:   "email is required",
 		},
 		{
-			name:        "Wrong Password",
-			email:       existingEmail,
-			password:    "Kefir_Kefr4c_Kefir",
-			appID:       testdata.AppID,
-			expectedErr: "invalid email or password",
+			name:     "Wrong Password",
+			email:    existingEmail,
+			password: "Kefir_Kefr4c_Kefir",
+			appID:    testdata.AppID,
+			errMsg:   "invalid email or password",
 		},
 		{
-			name:        "Non-Existent User",
-			email:       "ghost@example.com",
-			password:    generatePassword(validPasswordConfig),
-			appID:       testdata.AppID,
-			expectedErr: "invalid email or password",
+			name:     "Non-Existent User",
+			email:    "ghost@example.com",
+			password: generatePassword(validPasswordConfig),
+			appID:    testdata.AppID,
+			errMsg:   "invalid email or password",
 		},
 		{
-			name:        "Missing AppID",
-			email:       existingEmail,
-			password:    existingPassword,
-			appID:       0,
-			expectedErr: "app_id is required",
+			name:     "Missing AppID",
+			email:    existingEmail,
+			password: existingPassword,
+			appID:    0,
+			errMsg:   "app_id is required",
 		},
 	}
 
@@ -301,7 +301,126 @@ func TestLogin_FailCases(t *testing.T) {
 				AppId:    tt.appID,
 			})
 			require.Error(t, err)
-			assert.ErrorContains(t, err, tt.expectedErr)
+			assert.ErrorContains(t, err, tt.errMsg)
 		})
 	}
+}
+
+func TestIsAdmin(t *testing.T) {
+	ctx, st := suite.New(t)
+
+	logResp, err := st.AuthClient.Login(ctx, &ssov1.LoginRequest{
+		Email:    testdata.AdminEmail,
+		Password: testdata.AdminPassword,
+		AppId:    testdata.AppID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, logResp.Token)
+
+	claims, err := jwt.ValidateTokenWithSecret(logResp.GetToken(), testdata.AppSecret)
+	require.NoError(t, err)
+
+	isAdmin, err := st.AuthClient.IsAdmin(ctx, &ssov1.IsAdminRequest{
+		UserId: claims.UserID,
+	})
+	require.NoError(t, err)
+	require.True(t, isAdmin.GetIsAdmin())
+}
+
+func TestValidateToken_Success(t *testing.T) {
+	ctx, st := suite.New(t)
+	email := gofakeit.Email()
+	password := generatePassword(validPasswordConfig)
+
+	regResp, err := st.AuthClient.Register(ctx, &ssov1.RegisterRequest{
+		Email:    email,
+		Password: password,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, regResp.GetUserId())
+
+	logResp, err := st.AuthClient.Login(ctx, &ssov1.LoginRequest{
+		Email:    email,
+		Password: password,
+		AppId:    testdata.AppID,
+	})
+	require.NoError(t, err)
+
+	token := logResp.Token
+	require.NotEmpty(t, token)
+
+	validResp, err := st.AuthClient.ValidateToken(ctx, &ssov1.ValidateTokenRequest{
+		Token: token,
+	})
+	require.NoError(t, err)
+	assert.True(t, validResp.GetIsValid())
+	assert.Equal(t, email, validResp.Email)
+	assert.Equal(t, testdata.AppID, validResp.GetAppId())
+}
+
+func TestValidateToken_Invalid(t *testing.T) {
+	ctx, st := suite.New(t)
+
+	testCases := []struct {
+		name  string
+		token string
+	}{
+		{
+			name:  "Empty Token",
+			token: "",
+		},
+		{
+			name:  "Malformed Token",
+			token: "invalid.token.string",
+		},
+		{
+			name:  "Garbage",
+			token: "gthfdrtgvcsdwertgxdsrtgfdsrtsdvbgfdgf",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			validResp, err := st.AuthClient.ValidateToken(ctx, &ssov1.ValidateTokenRequest{
+				Token: tc.token,
+			})
+			require.NoError(t, err)
+			assert.False(t, validResp.GetIsValid())
+		})
+	}
+}
+
+func TestLogout(t *testing.T) {
+	ctx, st := suite.New(t)
+	email := gofakeit.Email()
+	password := generatePassword(validPasswordConfig)
+
+	regResp, err := st.AuthClient.Register(ctx, &ssov1.RegisterRequest{
+		Email:    email,
+		Password: password,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, regResp.GetUserId())
+
+	loginResp, err := st.AuthClient.Login(ctx, &ssov1.LoginRequest{
+		Email:    email,
+		Password: password,
+		AppId:    testdata.AppID,
+	})
+	require.NoError(t, err)
+
+	token := loginResp.GetToken()
+	require.NotEmpty(t, token)
+
+	logResp, err := st.AuthClient.Logout(ctx, &ssov1.LogoutRequest{
+		Token: token,
+	})
+	require.NoError(t, err)
+	assert.True(t, logResp.GetSuccess())
+
+	validResp, err := st.AuthClient.ValidateToken(ctx, &ssov1.ValidateTokenRequest{
+		Token: token,
+	})
+	require.NoError(t, err)
+	assert.False(t, validResp.GetIsValid())
 }
