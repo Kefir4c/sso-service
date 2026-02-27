@@ -1,0 +1,22 @@
+env: "remote"
+migrations-path: "./migrations"
+tokenTTL: 1h
+
+storage:
+  type: "postgres"
+  host: "my-psql"
+  port: 5432
+  username: "postgres"
+  password: "kefir"
+  dbname: "sso_db"
+
+cache:
+  driver: "redis"
+  host: "my-redis"
+  port: 6379
+  db: 0
+
+grpc:
+  host: "0.0.0.0"
+  port: 44044
+  timeout: 5s
