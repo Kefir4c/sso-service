@@ -61,14 +61,15 @@ func New(t *testing.T) (context.Context, *Suite) {
 
 	cfg := config.MustLoadPath(configPath())
 
-	db, err := sql.Open("postgres", fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
+	connStr := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=disable",
 		cfg.Storage.Username,
 		cfg.Storage.Password,
 		cfg.Storage.Host,
 		cfg.Storage.Port,
 		cfg.Storage.DBName,
-	))
+	)
+
+	db, err := sql.Open("postgres", connStr)
 	require.NoError(t, err, "failed to connet to db")
 
 	err = db.Ping()

@@ -21,7 +21,7 @@ type StorageConfig struct {
 	Type     string `yaml:"type" env-default:"postgres"`
 	Host     string `yaml:"host" env-default:"localhost"`
 	Port     int    `yaml:"port" env-default:"5432"`
-	Username string `yaml:"username" env-default:"postgres"`
+	Username string `yaml:"username" env-default:"kefir"`
 	Password string `yaml:"password" env-required:"true"`
 	DBName   string `yaml:"dbname" env-default:"sso_db"`
 }
