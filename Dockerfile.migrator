@@ -10,6 +10,7 @@ COPY ./internal/config ./internal/config
 COPY ./internal/logger ./internal/logger
 COPY ./internal/lib ./internal/lib
 COPY ./migrations ./migrations
+COPY ./config ./config
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/migrator ./cmd/migrator/main.go
 

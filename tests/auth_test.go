@@ -22,7 +22,7 @@ type PasswordConfig struct {
 
 var (
 	validPasswordConfig = PasswordConfig{
-		Length:         10,
+		Length:         30,
 		IncludeUpper:   true,
 		IncludeLower:   true,
 		IncludeNumeric: true,
@@ -46,7 +46,7 @@ var (
 	}
 
 	noDigitConfig = PasswordConfig{
-		Length:         10,
+		Length:         30,
 		IncludeUpper:   true,
 		IncludeLower:   true,
 		IncludeNumeric: false,
@@ -54,7 +54,7 @@ var (
 	}
 
 	noSpecialConfig = PasswordConfig{
-		Length:         10,
+		Length:         30,
 		IncludeUpper:   true,
 		IncludeLower:   true,
 		IncludeNumeric: true,
@@ -62,7 +62,7 @@ var (
 	}
 
 	noUpperConfig = PasswordConfig{
-		Length:         10,
+		Length:         30,
 		IncludeUpper:   false,
 		IncludeLower:   true,
 		IncludeNumeric: true,

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  my-psql:
     image: postgres:18-alpine
     container_name: kefir-postgres
     environment:
@@ -20,6 +20,67 @@ services:
     networks:
       - kefir-network
 
-  redis:
+  my-redis:
     image: redis:8-alpine
     container_name: kefir-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kefir-network
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrator
+    container_name: kefir-migrator
+    environment:
+      - POSTGRES_PASS=kefir
+      - REDIS_PASS=
+      - CONFIG_PATH=/app/config/remote.yaml
+    depends_on:
+      my-psql:
+        condition: service_healthy
+      my-redis:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config
+    networks:
+      - kefir-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: kefir-app
+    ports:
+      - "44044:44044"
+    environment:
+      - POSTGRES_PASS=kefir
+      - REDIS_PASS=
+      - CONFIG_PATH=/app/config/remote.yaml
+    depends_on:
+      my-psql:
+        condition: service_healthy
+      my-redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./config:/app/config
+    networks:
+      - kefir-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  kefir-network:
+    driver: bridge

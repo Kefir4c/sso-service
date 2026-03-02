@@ -7,8 +7,6 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users(email);
-
 COMMENT ON TABLE users IS 'Пользователи сервиса аутентификации';
 COMMENT ON COLUMN users.id IS 'Уникальный идентификатор пользователя';
 COMMENT ON COLUMN users.email IS 'Email пользователя (используется как логин)';

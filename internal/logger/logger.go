@@ -14,19 +14,19 @@ const (
 )
 
 func SetupLogger(env string) *slog.Logger {
-	var log *slog.Logger
-
 	switch env {
 	case envLocal:
-		log = setupPrettySlog()
+		return setupPrettySlog()
 	case envProd:
-		log = slog.New(
+		return slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	case envDev:
-		log = slog.New(
+		return slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	default:
+		return setupPrettySlog()
 	}
-	return log
+
 }
 
 func setupPrettySlog() *slog.Logger {

@@ -27,9 +27,11 @@ func Seed(db *sql.DB) error {
 	}
 
 	for _, q := range queries {
+		fmt.Printf("DEBUG: executing query:%s\n", q)
 		if _, err := db.Exec(q); err != nil {
 			return fmt.Errorf("seed failed: %w", err)
 		}
 	}
+	fmt.Println("DEBUG: seed completed successfully")
 	return nil
 }
