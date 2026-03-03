@@ -43,7 +43,6 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passhash []byte) (
 		}
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
-
 	return id, nil
 }
 

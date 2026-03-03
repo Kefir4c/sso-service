@@ -99,7 +99,6 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 	defer cancelCtx()
 
 	log := a.log.With(slog.String("op", op), slog.String("email", email))
-
 	if err := validation.ValidateEmail(email); err != nil {
 		log.Warn("invalid email", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, ErrInvalidEmail)
@@ -110,8 +109,6 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 		return 0, fmt.Errorf("%s: %w", op, ErrInvalidPassword)
 	}
 
-	log.Info("registering user")
-
 	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {
 		log.Error("failed to generate password hash", sl.Err(err))
@@ -120,7 +117,7 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 
 	id, err := a.storage.SaveUser(ctx, email, passHash)
 	if err != nil {
-		if errors.Is(err, storage.ErrUserExists) {
+		if errors.Is(err, storage.ErrLoginExists) {
 			log.Warn("user already exists")
 			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
 		}
@@ -174,7 +171,7 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 
 	user, err := a.getUser(ctx, email)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
+		if errors.Is(err, storage.ErrUserNotFound) {
 			log.Warn("user not found")
 			return "", fmt.Errorf("%s :%w", op, ErrUserNotFound)
 		}
@@ -222,7 +219,7 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 
 	isAdmin, err := a.storage.IsAdmin(ctx, userID)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
+		if errors.Is(err, storage.ErrUserNotFound) {
 			log.Warn("user not found")
 			return false, fmt.Errorf("%s: %w", op, ErrUserNotFound)
 		}
