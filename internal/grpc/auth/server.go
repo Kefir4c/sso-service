@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	ssov1 "github.com/Kefir4c/protos_sso/gen/go/sso"
@@ -30,8 +31,8 @@ type ServerAPI struct {
 }
 
 const (
-	errEmailInvalid    = "email is invalid"
-	errPasswordInvalid = "password is invalid"
+	errEmailInvalid    = "invalid email format"
+	errPasswordInvalid = "invalid password format"
 	errAppIDRequired   = "app_id is required"
 	errUserIDRequired  = "user_id is required"
 	errTokenRequired   = "token is required"
@@ -45,15 +46,25 @@ func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*s
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	if err := validation.ValidateEmail(in.Email); err != nil {
+	email := strings.TrimSpace(in.Email)
+	password := strings.TrimSpace(in.Password)
+
+	if email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+	if password == "" {
+		return nil, status.Error(codes.InvalidArgument, "password is required")
+	}
+
+	if err := validation.ValidateEmail(email); err != nil {
 		return nil, status.Error(codes.InvalidArgument, errEmailInvalid)
 	}
 
-	if err := validation.ValidatePassword(in.Password); err != nil {
+	if err := validation.ValidatePassword(password); err != nil {
 		return nil, status.Error(codes.InvalidArgument, errPasswordInvalid)
 	}
 
-	uid, err := s.auth.Register(ctx, in.Email, in.Password)
+	uid, err := s.auth.Register(ctx, email, password)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
@@ -67,11 +78,21 @@ func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.L
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	if err := validation.ValidateEmail(in.Email); err != nil {
+	email := strings.TrimSpace(in.Email)
+	password := strings.TrimSpace(in.Password)
+
+	if email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+	if password == "" {
+		return nil, status.Error(codes.InvalidArgument, "password is required")
+	}
+
+	if err := validation.ValidateEmail(email); err != nil {
 		return nil, status.Error(codes.InvalidArgument, errEmailInvalid)
 	}
 
-	if err := validation.ValidatePassword(in.Password); err != nil {
+	if err := validation.ValidatePassword(password); err != nil {
 		return nil, status.Error(codes.InvalidArgument, errPasswordInvalid)
 	}
 
@@ -79,7 +100,7 @@ func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.L
 		return nil, status.Error(codes.InvalidArgument, errAppIDRequired)
 	}
 
-	token, err := s.auth.Login(ctx, in.Email, in.Password, int(in.AppId))
+	token, err := s.auth.Login(ctx, email, password, int(in.AppId))
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return nil, status.Error(codes.Unauthenticated, "invalid email or password")

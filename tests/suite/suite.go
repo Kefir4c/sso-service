@@ -89,8 +89,10 @@ func New(t *testing.T) (context.Context, *Suite) {
 		cancelCtx()
 	})
 
+	host := "kefir-app"
+
 	clientConn, err := grpc.NewClient(
-		net.JoinHostPort(cfg.GRPC.Host, strconv.Itoa(cfg.GRPC.Port)),
+		net.JoinHostPort(host, strconv.Itoa(cfg.GRPC.Port)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err, "grpc server connection failed")

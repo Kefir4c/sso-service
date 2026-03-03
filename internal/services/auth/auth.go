@@ -99,6 +99,7 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 	defer cancelCtx()
 
 	log := a.log.With(slog.String("op", op), slog.String("email", email))
+
 	if err := validation.ValidateEmail(email); err != nil {
 		log.Warn("invalid email", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, ErrInvalidEmail)
