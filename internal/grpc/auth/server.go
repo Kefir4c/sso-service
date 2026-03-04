@@ -48,7 +48,7 @@ func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*s
 	password := strings.TrimSpace(in.GetPassword())
 
 	if email == "" {
-		return nil, status.Error(codes.InvalidArgument, validation.ErrEmailInvalid.Error())
+		return nil, status.Error(codes.InvalidArgument, validation.ErrEmailRequired.Error())
 	}
 	if password == "" {
 		return nil, status.Error(codes.InvalidArgument, validation.ErrPasswordRequired.Error())
@@ -80,7 +80,7 @@ func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.L
 	password := strings.TrimSpace(in.GetPassword())
 
 	if email == "" {
-		return nil, status.Error(codes.InvalidArgument, validation.ErrEmailInvalid.Error())
+		return nil, status.Error(codes.InvalidArgument, validation.ErrEmailRequired.Error())
 	}
 	if password == "" {
 		return nil, status.Error(codes.InvalidArgument, validation.ErrPasswordRequired.Error())

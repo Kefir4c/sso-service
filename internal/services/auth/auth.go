@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/Kefir4c/sso-service/internal/domain/models"
@@ -74,7 +75,8 @@ func (a *Auth) getUser(ctx context.Context, email string) (*models.User, error) 
 	user, err = a.storage.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			return nil, fmt.Errorf("%w", ErrUserNotFound)
+			fmt.Fprintf(os.Stderr, "🔍 DEBUG getUser: storage.ErrUserNotFound caught, returning ErrInvalidCredentials\n")
+			return nil, ErrInvalidCredentials
 		}
 		log.Error("storage error", sl.Err(err))
 		return nil, fmt.Errorf("get user from storage: %w", err)
@@ -170,9 +172,8 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 
 	user, err := a.getUser(ctx, email)
 	if err != nil {
-		if errors.Is(err, storage.ErrUserNotFound) {
-			log.Warn("user not found")
-			return "", fmt.Errorf("%s :%w", op, ErrUserNotFound)
+		if errors.Is(err, ErrInvalidCredentials) {
+			return "", ErrInvalidCredentials
 		}
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
@@ -184,6 +185,7 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 
 	app, err := a.appStorage.App(ctx, appID)
 	if err != nil {
+		log.Error("failed to get app", slog.Int("app_id", appID), sl.Err(err))
 		if errors.Is(err, ErrAppNotFound) {
 			log.Warn("app not found", slog.Int("app_id", appID))
 			return "", fmt.Errorf("%s :%w", op, ErrAppNotFound)
