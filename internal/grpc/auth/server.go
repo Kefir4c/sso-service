@@ -31,11 +31,9 @@ type ServerAPI struct {
 }
 
 const (
-	errEmailInvalid    = "invalid email format"
-	errPasswordInvalid = "invalid password format"
-	errAppIDRequired   = "app_id is required"
-	errUserIDRequired  = "user_id is required"
-	errTokenRequired   = "token is required"
+	errAppIDRequired  = "app_id is required"
+	errUserIDRequired = "user_id is required"
+	errTokenRequired  = "token is required"
 )
 
 func Register(gRPCServer *grpc.Server, auth Auth, timeout time.Duration) {
@@ -46,22 +44,22 @@ func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*s
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	email := strings.TrimSpace(in.Email)
-	password := strings.TrimSpace(in.Password)
+	email := strings.TrimSpace(in.GetEmail())
+	password := strings.TrimSpace(in.GetPassword())
 
 	if email == "" {
-		return nil, status.Error(codes.InvalidArgument, "email is required")
+		return nil, status.Error(codes.InvalidArgument, validation.ErrEmailInvalid.Error())
 	}
 	if password == "" {
-		return nil, status.Error(codes.InvalidArgument, "password is required")
+		return nil, status.Error(codes.InvalidArgument, validation.ErrPasswordRequired.Error())
 	}
 
 	if err := validation.ValidateEmail(email); err != nil {
-		return nil, status.Error(codes.InvalidArgument, errEmailInvalid)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if err := validation.ValidatePassword(password); err != nil {
-		return nil, status.Error(codes.InvalidArgument, errPasswordInvalid)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	uid, err := s.auth.Register(ctx, email, password)
@@ -78,25 +76,25 @@ func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.L
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	email := strings.TrimSpace(in.Email)
-	password := strings.TrimSpace(in.Password)
+	email := strings.TrimSpace(in.GetEmail())
+	password := strings.TrimSpace(in.GetPassword())
 
 	if email == "" {
-		return nil, status.Error(codes.InvalidArgument, "email is required")
+		return nil, status.Error(codes.InvalidArgument, validation.ErrEmailInvalid.Error())
 	}
 	if password == "" {
-		return nil, status.Error(codes.InvalidArgument, "password is required")
+		return nil, status.Error(codes.InvalidArgument, validation.ErrPasswordRequired.Error())
 	}
 
 	if err := validation.ValidateEmail(email); err != nil {
-		return nil, status.Error(codes.InvalidArgument, errEmailInvalid)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if err := validation.ValidatePassword(password); err != nil {
-		return nil, status.Error(codes.InvalidArgument, errPasswordInvalid)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if in.AppId == 0 {
+	if in.GetAppId() == 0 {
 		return nil, status.Error(codes.InvalidArgument, errAppIDRequired)
 	}
 
@@ -114,17 +112,18 @@ func (s *ServerAPI) IsAdmin(ctx context.Context, in *ssov1.IsAdminRequest) (*sso
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	if in.UserId == 0 {
+	if in.GetUserId() == 0 {
 		return nil, status.Error(codes.InvalidArgument, errUserIDRequired)
 	}
 
-	isAdmin, err := s.auth.IsAdmin(ctx, in.UserId)
+	isAdmin, err := s.auth.IsAdmin(ctx, in.GetUserId())
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
-		return nil, status.Error(codes.Internal, "failed to check admin status")
+		return nil, status.Error(codes.Internal, "internal error")
 	}
+
 	return &ssov1.IsAdminResponse{IsAdmin: isAdmin}, nil
 }
 
@@ -132,11 +131,11 @@ func (s *ServerAPI) ValidateToken(ctx context.Context, in *ssov1.ValidateTokenRe
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	if in.Token == "" {
+	if in.GetToken() == "" {
 		return nil, status.Error(codes.InvalidArgument, errTokenRequired)
 	}
 
-	isValid, userID, email, appID := s.auth.ValidateToken(ctx, in.Token)
+	isValid, userID, email, appID := s.auth.ValidateToken(ctx, in.GetToken())
 	return &ssov1.ValidateTokenResponse{
 		IsValid: isValid,
 		UserId:  userID,
@@ -149,18 +148,18 @@ func (s *ServerAPI) Logout(ctx context.Context, in *ssov1.LogoutRequest) (*ssov1
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	if in.Token == "" {
+	if in.GetToken() == "" {
 		return nil, status.Error(codes.InvalidArgument, errTokenRequired)
 	}
 
-	tokenPreview := in.Token
+	tokenPreview := in.GetToken()
 	if len(tokenPreview) > 8 {
 		tokenPreview = tokenPreview[:8] + "..."
 	}
 
 	slog.Info("Logout request", "Token", tokenPreview)
 
-	success, err := s.auth.Logout(ctx, in.Token)
+	success, err := s.auth.Logout(ctx, in.GetToken())
 	if err != nil {
 		return &ssov1.LogoutResponse{Success: false}, nil
 	}

@@ -89,7 +89,7 @@ func New(t *testing.T) (context.Context, *Suite) {
 		cancelCtx()
 	})
 
-	host := "kefir-app"
+	host := "app"
 
 	clientConn, err := grpc.NewClient(
 		net.JoinHostPort(host, strconv.Itoa(cfg.GRPC.Port)),

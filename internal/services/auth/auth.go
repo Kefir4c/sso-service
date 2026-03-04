@@ -17,8 +17,6 @@ import (
 
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInvalidEmail       = errors.New("invalid email format")
-	ErrInvalidPassword    = errors.New("invalid password format")
 	ErrUserExists         = errors.New("user already exists")
 	ErrUserNotFound       = errors.New("user not found")
 	ErrAppNotFound        = errors.New("app not found")
@@ -102,12 +100,12 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 
 	if err := validation.ValidateEmail(email); err != nil {
 		log.Warn("invalid email", sl.Err(err))
-		return 0, fmt.Errorf("%s: %w", op, ErrInvalidEmail)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	if err := validation.ValidatePassword(password); err != nil {
 		log.Warn("invalid password", sl.Err(err))
-		return 0, fmt.Errorf("%s: %w", op, ErrInvalidPassword)
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
@@ -120,7 +118,7 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 	if err != nil {
 		if errors.Is(err, storage.ErrLoginExists) {
 			log.Warn("user already exists")
-			return 0, fmt.Errorf("%s: %w", op, ErrUserExists)
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExists)
 		}
 		log.Error("failed to save user to storage", op, err)
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -155,12 +153,12 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 
 	if err := validation.ValidateEmail(email); err != nil {
 		log.Warn("invalid email", sl.Err(err))
-		return "", fmt.Errorf("%s :%w", op, ErrInvalidEmail)
+		return "", fmt.Errorf("%s :%w", op, err)
 	}
 
 	if err := validation.ValidatePassword(password); err != nil {
 		log.Warn("invalid password", sl.Err(err))
-		return "", fmt.Errorf("%s :%w", op, ErrInvalidPassword)
+		return "", fmt.Errorf("%s :%w", op, err)
 	}
 
 	if appID < 0 {

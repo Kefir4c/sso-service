@@ -32,7 +32,7 @@ var (
 	}
 
 	shortPasswordConfig = PasswordConfig{
-		Length:         5,
+		Length:         7,
 		IncludeUpper:   true,
 		IncludeLower:   true,
 		IncludeNumeric: true,
@@ -125,13 +125,13 @@ func TestRegister_InvalidPasswordLength(t *testing.T) {
 			name:    "too short (<8)",
 			config:  shortPasswordConfig,
 			wantErr: true,
-			errMsg:  "password too short",
+			errMsg:  "password must be at least 8 characters",
 		},
 		{
 			name:    "too long (>72)",
 			config:  longPasswordConfig,
 			wantErr: true,
-			errMsg:  "password too long",
+			errMsg:  "password must be less than 72 characters",
 		},
 		{
 			name:    "valid length (8-72)",
@@ -172,19 +172,19 @@ func TestRegister_PasswordComplexity(t *testing.T) {
 			name:    "no digits",
 			config:  noDigitConfig,
 			wantErr: true,
-			errMsg:  "must contain at least one number",
+			errMsg:  "password must contains at least one number",
 		},
 		{
 			name:    "no special characters",
 			config:  noSpecialConfig,
 			wantErr: true,
-			errMsg:  "must contain at least one special character",
+			errMsg:  "password must contains at least one special character",
 		},
 		{
 			name:    "no uppercase letters",
 			config:  noUpperConfig,
 			wantErr: true,
-			errMsg:  "must contain at least one uppercase letter",
+			errMsg:  "password must contain at least one uppercase letter",
 		},
 		{
 			name:    "all requirements met",
