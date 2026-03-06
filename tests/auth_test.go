@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// test
 type PasswordConfig struct {
 	Length         int
 	IncludeUpper   bool
