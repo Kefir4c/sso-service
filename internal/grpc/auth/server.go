@@ -8,7 +8,10 @@ import (
 	"time"
 
 	ssov1 "github.com/Kefir4c/protos_sso/gen/go/sso"
+<<<<<<< HEAD
 	"github.com/Kefir4c/sso-service/internal/services/auth"
+=======
+>>>>>>> d5616c6 (day15.1)
 	"github.com/Kefir4c/sso-service/internal/storage"
 	"github.com/Kefir4c/sso-service/internal/validation"
 	"google.golang.org/grpc"
@@ -100,9 +103,16 @@ func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.L
 
 	token, err := s.auth.Login(ctx, email, password, int(in.AppId))
 	if err != nil {
+<<<<<<< HEAD
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return nil, status.Error(codes.Unauthenticated, "invalid email or password")
 		}
+=======
+		if strings.Contains(err.Error(), "invalid credentials") {
+			return nil, status.Error(codes.Unauthenticated, "invalid email or password")
+		}
+		slog.Error("Login error", "error", err)
+>>>>>>> d5616c6 (day15.1)
 		return nil, status.Error(codes.Internal, "failed to login user")
 	}
 	return &ssov1.LoginResponse{Token: token}, nil

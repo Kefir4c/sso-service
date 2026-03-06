@@ -1,8 +1,11 @@
 package tests
 
 import (
+<<<<<<< HEAD
 	"fmt"
 	"os"
+=======
+>>>>>>> d5616c6 (day15.1)
 	"testing"
 
 	ssov1 "github.com/Kefir4c/protos_sso/gen/go/sso"
@@ -213,15 +216,21 @@ func TestRegister_PasswordComplexity(t *testing.T) {
 }
 
 func TestRegister_Duplicate(t *testing.T) {
+<<<<<<< HEAD
 	f, _ := os.OpenFile("./debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	defer f.Close()
 	fmt.Fprintf(f, "🔥 TEST STARTED\n")
 
+=======
+>>>>>>> d5616c6 (day15.1)
 	ctx, st := suite.New(t)
 	email := gofakeit.Email()
 	password := generatePassword(validPasswordConfig)
 
+<<<<<<< HEAD
 	fmt.Fprintf(f, "🔥 FIRST REGISTRATION: email=%s\n", email)
+=======
+>>>>>>> d5616c6 (day15.1)
 	regResp, err := st.AuthClient.Register(ctx, &ssov1.RegisterRequest{
 		Email:    email,
 		Password: password,
