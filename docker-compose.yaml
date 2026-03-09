@@ -90,6 +90,8 @@ services:
         condition: service_healthy
       my-redis:
         condition: service_healthy
+      app:
+        condition: service_started  
     networks:
       - kefir-network    
 

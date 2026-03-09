@@ -131,10 +131,6 @@ func (s *ServerAPI) ValidateToken(ctx context.Context, in *ssov1.ValidateTokenRe
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
 
-	if in.GetToken() == "" {
-		return nil, status.Error(codes.InvalidArgument, errTokenRequired)
-	}
-
 	isValid, userID, email, appID := s.auth.ValidateToken(ctx, in.GetToken())
 	return &ssov1.ValidateTokenResponse{
 		IsValid: isValid,

@@ -47,7 +47,7 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passhash []byte) (
 }
 
 func (s *Storage) User(ctx context.Context, email string) (*models.User, error) {
-	const op = "Storage.user_repo.User"
+	const op = "storage.user_repo.User"
 
 	var user models.User
 	if err := s.pool.QueryRow(ctx, sqlGetUserByEmail, email).
@@ -61,7 +61,7 @@ func (s *Storage) User(ctx context.Context, email string) (*models.User, error) 
 }
 
 func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
-	const op = "Storage.user_repo.IsAdmin"
+	const op = "storage.user_repo.IsAdmin"
 
 	var isAdmin bool
 
