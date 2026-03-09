@@ -222,7 +222,7 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			log.Warn("user not found")
-			return false, fmt.Errorf("%s: %w", op, ErrUserNotFound)
+			return false, fmt.Errorf("%s: %w", op, storage.ErrUserNotFound)
 		}
 		log.Error("failed to check admin status", sl.Err(err))
 		return false, fmt.Errorf("%s: %w", op, err)
