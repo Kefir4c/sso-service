@@ -14,6 +14,7 @@ type Storage struct {
 	pool *pgxpool.Pool
 }
 
+// New creates new PostgreSQL connection pool with configuration.
 func New(ctx context.Context, host, database, username, password string, port int) (*Storage, error) {
 	const op = "postgres.New"
 
@@ -43,6 +44,7 @@ func New(ctx context.Context, host, database, username, password string, port in
 	return &Storage{pool: pool}, nil
 }
 
+// NewFromConfig creates PostgreSQL connection from app config.
 func NewFromConfig(config *config.Config) (*Storage, error) {
 	ctx, cancelCtx := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelCtx()

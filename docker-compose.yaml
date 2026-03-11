@@ -93,7 +93,7 @@ services:
       app:
         condition: service_started  
     networks:
-      - kefir-network    
+      - kefir-network
 
 volumes:
   postgres_data:

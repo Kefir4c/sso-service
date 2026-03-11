@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Auth defines interface for auth service business logic.
 type Auth interface {
 	Register(ctx context.Context, email, password string) (uid int64, err error)
 	Login(ctx context.Context, email, password string, appID int) (token string, err error)
@@ -24,6 +25,7 @@ type Auth interface {
 	Logout(ctx context.Context, token string) (bool, error)
 }
 
+// ServerAPI implements gRPC auth server.
 type ServerAPI struct {
 	ssov1.UnimplementedAuthServer
 	auth    Auth
@@ -36,10 +38,14 @@ const (
 	errTokenRequired  = "token is required"
 )
 
+// Register registers auth server on gRPC server.
 func Register(gRPCServer *grpc.Server, auth Auth, timeout time.Duration) {
 	ssov1.RegisterAuthServer(gRPCServer, &ServerAPI{auth: auth, timeout: timeout})
 }
 
+// Register handles user registration request.
+// Validates email and password, creates new user.
+// Returns user ID or error.
 func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
@@ -72,6 +78,9 @@ func (s *ServerAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*s
 	return &ssov1.RegisterResponse{UserId: uid}, nil
 }
 
+// Login handles user login request.
+// Validates credentials and returns JWT token.
+// Returns token or error.
 func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
@@ -108,6 +117,8 @@ func (s *ServerAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.L
 	return &ssov1.LoginResponse{Token: token}, nil
 }
 
+// IsAdmin checks if user has admin rights.
+// Returns true if user is admin, false otherwise.
 func (s *ServerAPI) IsAdmin(ctx context.Context, in *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
@@ -127,6 +138,8 @@ func (s *ServerAPI) IsAdmin(ctx context.Context, in *ssov1.IsAdminRequest) (*sso
 	return &ssov1.IsAdminResponse{IsAdmin: isAdmin}, nil
 }
 
+// ValidateToken validates JWT token and returns user data.
+// Returns validation status and user info if valid.
 func (s *ServerAPI) ValidateToken(ctx context.Context, in *ssov1.ValidateTokenRequest) (*ssov1.ValidateTokenResponse, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()
@@ -140,6 +153,8 @@ func (s *ServerAPI) ValidateToken(ctx context.Context, in *ssov1.ValidateTokenRe
 	}, nil
 }
 
+// Logout handles user logout by adding token to blacklist.
+// Returns success status.
 func (s *ServerAPI) Logout(ctx context.Context, in *ssov1.LogoutRequest) (*ssov1.LogoutResponse, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, s.timeout)
 	defer cancelCtx()

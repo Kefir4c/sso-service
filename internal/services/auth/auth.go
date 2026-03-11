@@ -32,6 +32,7 @@ const (
 	bgTimeout        = 2 * time.Second
 )
 
+// Auth represents authentication service with all dependencies.
 type Auth struct {
 	log        *slog.Logger
 	storage    UserStorage
@@ -40,6 +41,7 @@ type Auth struct {
 	tokenTTL   time.Duration
 }
 
+// New creates new Auth service instance.
 func New(log *slog.Logger,
 	userStorage UserStorage,
 	appStorage AppStorage,
@@ -54,6 +56,8 @@ func New(log *slog.Logger,
 	}
 }
 
+// getUser retrieves user from cache or DB.
+// Tries cache first, falls back to DB on miss, then updates cache async.
 func (a *Auth) getUser(ctx context.Context, email string) (*models.User, error) {
 	ctx, cancelCtx := context.WithTimeout(ctx, operationTimeout)
 	defer cancelCtx()
@@ -92,6 +96,8 @@ func (a *Auth) getUser(ctx context.Context, email string) (*models.User, error) 
 	return user, nil
 }
 
+// Register creates new user account.
+// Validates email/password, hashes password, stores in DB and cache.
 func (a *Auth) Register(ctx context.Context, email, password string) (int64, error) {
 	const op = "auth.Register"
 
@@ -145,6 +151,8 @@ func (a *Auth) Register(ctx context.Context, email, password string) (int64, err
 	return id, nil
 }
 
+// Login authenticates user and returns JWT token.
+// Validates credentials, checks app existence, generates token.
 func (a *Auth) Login(ctx context.Context, email, password string, appID int) (string, error) {
 	const op = "auth.Login"
 
@@ -203,6 +211,8 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (st
 	return token, nil
 }
 
+// IsAdmin checks if user has admin privileges.
+// Returns true for admin users, false otherwise.
 func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "auth.IsAdmin"
 
@@ -232,6 +242,8 @@ func (a *Auth) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	return isAdmin, nil
 }
 
+// ValidateToken checks token validity and returns user data.
+// Verifies: blacklist, signature, app existence, user existence.
 func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, string, int) {
 	const op = "auth.ValidateToken"
 
@@ -292,6 +304,8 @@ func (a *Auth) ValidateToken(ctx context.Context, token string) (bool, int64, st
 	return true, validatedClaims.UserID, validatedClaims.Email, validatedClaims.AppID
 }
 
+// Logout invalidates token by adding it to blacklist.
+// Token remains blacklisted until its original expiration.
 func (a *Auth) Logout(ctx context.Context, token string) (bool, error) {
 	const op = "auth.Logout"
 

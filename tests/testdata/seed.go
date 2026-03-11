@@ -19,6 +19,8 @@ const (
 	UserHash     = "$2a$10$YNDAwyX7rCSNgQCwuexdVOwEHNMI4J.HvEqZzRxmWmgOdjKAjMxFm"
 )
 
+// Seed populates database with test data.
+// Truncates existing tables, inserts test app and users.
 func Seed(db *sql.DB) error {
 	queries := []string{
 		"TRUNCATE users, apps RESTART IDENTITY CASCADE;",

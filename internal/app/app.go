@@ -11,10 +11,13 @@ import (
 	"github.com/Kefir4c/sso-service/internal/storage/postgres"
 )
 
+// App represents main application structure.
 type App struct {
 	GRPCServer *grpcapp.App
 }
 
+// New creates new application instance.
+// Connects to PostgreSQL and Redis, creates auth service and gRPC server.
 func New(log *slog.Logger, cfg *config.Config) *App {
 
 	var (

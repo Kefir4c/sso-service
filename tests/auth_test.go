@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// PasswordConfig defines parameters for test password generation.
 type PasswordConfig struct {
 	Length         int
 	IncludeUpper   bool
@@ -70,6 +71,7 @@ var (
 	}
 )
 
+// generatePassword creates test password based on config.
 func generatePassword(config PasswordConfig) string {
 	return gofakeit.Password(
 		config.IncludeLower,
@@ -81,6 +83,7 @@ func generatePassword(config PasswordConfig) string {
 	)
 }
 
+// TestHappyPath_RegisterLogin tests successful registration and login flow.
 func TestHappyPath_RegisterLogin(t *testing.T) {
 	ctx, st := suite.New(t)
 	email := gofakeit.Email()
@@ -110,6 +113,8 @@ func TestHappyPath_RegisterLogin(t *testing.T) {
 	assert.Equal(t, email, claims.Email)
 	assert.Equal(t, testdata.AppID, claims.AppID)
 }
+
+// TestRegister_InvalidPasswordLength tests password length validation.
 func TestRegister_InvalidPasswordLength(t *testing.T) {
 	ctx, st := suite.New(t)
 
@@ -157,6 +162,7 @@ func TestRegister_InvalidPasswordLength(t *testing.T) {
 	}
 }
 
+// TestRegister_PasswordComplexity tests password complexity requirements.
 func TestRegister_PasswordComplexity(t *testing.T) {
 	ctx, st := suite.New(t)
 
@@ -210,6 +216,7 @@ func TestRegister_PasswordComplexity(t *testing.T) {
 	}
 }
 
+// TestRegister_Duplicate tests duplicate registration prevention.
 func TestRegister_Duplicate(t *testing.T) {
 
 	ctx, st := suite.New(t)
@@ -232,6 +239,8 @@ func TestRegister_Duplicate(t *testing.T) {
 	assert.ErrorContains(t, err, "user already exists")
 }
 
+// TestLogin_FailCases tests various login failure scenarios.
+// Covers: empty fields, wrong password, non-existent user, missing app ID.
 func TestLogin_FailCases(t *testing.T) {
 	ctx, st := suite.New(t)
 	existingEmail := gofakeit.Email()
@@ -307,6 +316,7 @@ func TestLogin_FailCases(t *testing.T) {
 	}
 }
 
+// TestIsAdmin tests admin status verification.
 func TestIsAdmin(t *testing.T) {
 	ctx, st := suite.New(t)
 
@@ -328,6 +338,7 @@ func TestIsAdmin(t *testing.T) {
 	require.True(t, isAdmin.GetIsAdmin())
 }
 
+// TestValidateToken_Success tests successful token validation.
 func TestValidateToken_Success(t *testing.T) {
 	ctx, st := suite.New(t)
 	email := gofakeit.Email()
@@ -359,6 +370,8 @@ func TestValidateToken_Success(t *testing.T) {
 	assert.Equal(t, testdata.AppID, validResp.GetAppId())
 }
 
+// TestValidateToken_Invalid tests token validation with invalid tokens.
+// Covers: empty token, malformed token, garbage.
 func TestValidateToken_Invalid(t *testing.T) {
 	ctx, st := suite.New(t)
 
@@ -391,6 +404,8 @@ func TestValidateToken_Invalid(t *testing.T) {
 	}
 }
 
+// TestLogout tests logout functionality.
+// Verifies token is blacklisted and becomes invalid.
 func TestLogout(t *testing.T) {
 	ctx, st := suite.New(t)
 	email := gofakeit.Email()

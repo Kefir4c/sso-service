@@ -10,6 +10,7 @@ import (
 
 const blacklistPrefix = "blacklist:"
 
+// AddToBlacklist adds token to Redis blacklist with TTL.
 func (r *Redis) AddToBlacklist(ctx context.Context, token string, ttl time.Duration) error {
 	const op = "redise.AddToBlacklist "
 
@@ -18,6 +19,7 @@ func (r *Redis) AddToBlacklist(ctx context.Context, token string, ttl time.Durat
 	return r.client.Set(ctx, key, true, ttl).Err()
 }
 
+// IsBlacklisted проверяет, существует ли токен в черном списке.
 func (r *Redis) IsBlacklisted(ctx context.Context, token string) (bool, error) {
 	const op = "refis.IsBlacklisted"
 

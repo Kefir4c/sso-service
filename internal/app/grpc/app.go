@@ -15,12 +15,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// App represents gRPC server with middleware.
 type App struct {
 	log    *slog.Logger
 	server *grpc.Server
 	port   int
 }
 
+// New creates gRPC server with recovery and logging interceptors.
+// Registers auth service.
 func New(log *slog.Logger, auth authgrpc.Auth, port int, timeout time.Duration) *App {
 
 	loggingOpts := []logging.Option{
@@ -51,6 +54,7 @@ func New(log *slog.Logger, auth authgrpc.Auth, port int, timeout time.Duration) 
 	}
 }
 
+// InterceptorLogger adapts slog for grpc-middleware.
 func InterceptorLogger(l *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, level logging.Level, msg string, fields ...any) {
 		l.Log(ctx, slog.Level(level), msg, fields...)

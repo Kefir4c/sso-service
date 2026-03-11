@@ -14,6 +14,7 @@ type Redis struct {
 	client *redis.Client
 }
 
+// New creates new Redis client and verifies connection.
 func New(addr, password string, db int) (*Redis, error) {
 	const op = "redis.New"
 
@@ -33,6 +34,7 @@ func New(addr, password string, db int) (*Redis, error) {
 	return &Redis{client: client}, nil
 }
 
+// NewFromConfig creates Redis client from application config.
 func NewFromConfig(cfg *config.Config) (*Redis, error) {
 	return New(fmt.Sprintf("%s:%d", cfg.Cache.Host, cfg.Cache.Port), os.Getenv("REDIS_PASS"), cfg.Cache.DB)
 }

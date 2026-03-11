@@ -19,6 +19,7 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
+// SetUser stores user in Redis cache with TTL.
 func (r *Redis) SetUser(ctx context.Context, user *models.User, ttl time.Duration) error {
 	const op = "redis.SetUser"
 
@@ -32,6 +33,7 @@ func (r *Redis) SetUser(ctx context.Context, user *models.User, ttl time.Duratio
 	return r.client.Set(ctx, key, data, ttl).Err()
 }
 
+// GetUser retrieves user from Redis cache by email.
 func (r *Redis) GetUser(ctx context.Context, email string) (*models.User, error) {
 	const op = "redis.Getuser"
 

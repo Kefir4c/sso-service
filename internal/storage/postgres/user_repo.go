@@ -30,6 +30,7 @@ const (
 	pgUniqueViolation = "23505"
 )
 
+// SaveUser inserts new user into database.
 func (s *Storage) SaveUser(ctx context.Context, email string, passhash []byte) (int64, error) {
 	const op = "storage.user_repo.SaveUser"
 
@@ -46,6 +47,7 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passhash []byte) (
 	return id, nil
 }
 
+// User retrieves user by email from database.
 func (s *Storage) User(ctx context.Context, email string) (*models.User, error) {
 	const op = "storage.user_repo.User"
 
@@ -60,6 +62,7 @@ func (s *Storage) User(ctx context.Context, email string) (*models.User, error) 
 	return &user, nil
 }
 
+// IsAdmin checks if user has admin privileges.
 func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "storage.user_repo.IsAdmin"
 

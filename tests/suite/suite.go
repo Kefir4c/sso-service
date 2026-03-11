@@ -13,6 +13,7 @@ import (
 	ssov1 "github.com/Kefir4c/protos_sso/gen/go/sso"
 	"github.com/Kefir4c/sso-service/internal/config"
 	"github.com/Kefir4c/sso-service/tests/testdata"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -57,6 +58,7 @@ func configPath() string {
 	panic("config file not found")
 }
 
+// New creates new test suite with database connection and gRPC client.
 func New(t *testing.T) (context.Context, *Suite) {
 	t.Helper()
 	t.Parallel()
@@ -77,11 +79,6 @@ func New(t *testing.T) (context.Context, *Suite) {
 	err = db.Ping()
 	require.NoError(t, err, "db is not reachable")
 
-	once.Do(func() {
-		err = testdata.Seed(db)
-		require.NoError(t, err, "failed to seed test db")
-	})
-
 	ctx, cancelCtx := context.WithTimeout(context.Background(), cfg.GRPC.Timeout)
 
 	t.Cleanup(func() {
@@ -89,8 +86,27 @@ func New(t *testing.T) (context.Context, *Suite) {
 		cancelCtx()
 	})
 
-	host := "app"
+	once.Do(func() {
+		err = testdata.Seed(db)
+		require.NoError(t, err, "failed to seed test db")
 
+		redisAddr := fmt.Sprintf("%s:%d", cfg.Cache.Host, cfg.Cache.Port)
+		redisCleint := redis.NewClient(&redis.Options{
+			Addr:     redisAddr,
+			Password: "",
+			DB:       cfg.Cache.DB,
+		})
+		defer redisCleint.Close()
+
+		err = redisCleint.FlushAll(ctx).Err()
+		if err != nil {
+			t.Logf("Warning: failed to flush redis: %v", err)
+		} else {
+			t.Log("Redis flushed successfully")
+		}
+	})
+
+	host := "app"
 	clientConn, err := grpc.NewClient(
 		net.JoinHostPort(host, strconv.Itoa(cfg.GRPC.Port)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

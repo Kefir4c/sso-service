@@ -8,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Claims represents JWT claims structure with user data.
 type Claims struct {
 	UserID int64  `json:"user_id"`
 	Email  string `json:"email"`
@@ -15,6 +16,8 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// NewToken generates new JWT token for user and app with specified duration.
+// Signs token with app's secret key.
 func NewToken(user *models.User, app *models.App, duration time.Duration) (string, error) {
 	claims := Claims{
 		UserID: user.ID,
@@ -30,6 +33,9 @@ func NewToken(user *models.User, app *models.App, duration time.Duration) (strin
 	return token.SignedString([]byte(app.Secret))
 }
 
+// ParseToken parses JWT token without signature validation.
+// Returns claims or error if token structure is invalid.
+// Note: does not verify signature, use ValidateTokenWithSecret for validation.
 func ParseToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -54,6 +60,8 @@ func ParseToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// ValidateTokenWithSecret validates JWT token signature and returns claims.
+// Uses provided secret key to verify token authenticity.
 func ValidateTokenWithSecret(tokenString, secret string) (*Claims, error) {
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {

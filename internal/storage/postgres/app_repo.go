@@ -16,6 +16,7 @@ const sqlGetApp = `
 	WHERE id = $1
 `
 
+// App retrieves application by ID from database.
 func (s *Storage) App(ctx context.Context, appID int) (*models.App, error) {
 	const op = "storage.app_repo.App"
 
